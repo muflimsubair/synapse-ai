@@ -63,7 +63,7 @@ export default function LandingPage() {
         >
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium">
             <Cpu size={12} />
-            Enterprise AI Research Agent
+            Synapse AI
           </div>
 
           <h1 className="text-5xl md:text-6xl font-bold leading-tight tracking-tight">

@@ -45,7 +45,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 transition={{ duration: 0.15 }}
                 className="font-semibold text-sm text-foreground whitespace-nowrap overflow-hidden"
               >
-                ResearchAI
+                Synapse AI
               </motion.span>
             )}
           </AnimatePresence>
