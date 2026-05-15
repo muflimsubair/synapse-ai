@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, Zap, Brain, ChevronDown, Check, FileText, Loader2,
-  Globe, BookOpen, Lightbulb, PenLine, CheckCircle, AlertCircle
+  Search, Zap, Brain, Check, FileText, Loader2,
+  Globe, BookOpen, Lightbulb, PenLine, CheckCircle,
+  AlertCircle, Sparkles, BarChart2, ArrowRight, X
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListDocuments, getListReportsQueryKey, getGetStatsOverviewQueryKey } from "@workspace/api-client-react";
@@ -33,19 +34,55 @@ const stepIcon: Partial<Record<StepType, typeof Search>> = {
   done: CheckCircle,
 };
 
+const SUGGESTED_PROMPTS = [
+  { icon: Brain, label: "Summarize", query: "Summarize this document and highlight the main points" },
+  { icon: Sparkles, label: "Key insights", query: "Extract the key insights and important findings from this document" },
+  { icon: BarChart2, label: "Full report", query: "Generate a comprehensive research report based on this document" },
+  { icon: Search, label: "Analyze topics", query: "Identify and analyze the main topics, skills, and themes in this document" },
+  { icon: Globe, label: "Web comparison", query: "Compare the content of this document with current web research on the same topic" },
+];
+
+function getUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    docId: params.get("docId") ? parseInt(params.get("docId")!) : null,
+    query: params.get("query") ?? "",
+  };
+}
+
 export default function ResearchPage() {
   const qc = useQueryClient();
-  const [query, setQuery] = useState("");
+
+  // Read URL params once on mount
+  const { docId: initialDocId, query: initialQuery } = getUrlParams();
+
+  const [query, setQuery] = useState(initialQuery);
   const [mode, setMode] = useState<Mode>("quick");
-  const [selectedDocs, setSelectedDocs] = useState<number[]>([]);
+  const [selectedDocs, setSelectedDocs] = useState<number[]>(initialDocId ? [initialDocId] : []);
   const [steps, setSteps] = useState<Step[]>([]);
   const [report, setReport] = useState("");
   const [sources, setSources] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
+  const [fromDoc, setFromDoc] = useState<number | null>(initialDocId);
   const abortRef = useRef<AbortController | null>(null);
 
   const { data: documents } = useListDocuments();
+
+  // When the document list loads, auto-select the pre-loaded doc
+  useEffect(() => {
+    if (initialDocId && documents) {
+      const found = documents.find((d) => d.id === initialDocId);
+      if (found) setSelectedDocs([initialDocId]);
+    }
+  }, [documents, initialDocId]);
+
+  // Clear the "from doc" context if the user deselects it
+  useEffect(() => {
+    if (fromDoc && !selectedDocs.includes(fromDoc)) {
+      setFromDoc(null);
+    }
+  }, [selectedDocs, fromDoc]);
 
   const runResearch = async () => {
     if (!query.trim() || running) return;
@@ -114,6 +151,10 @@ export default function ResearchPage() {
     setSelectedDocs((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]);
   };
 
+  const fromDocName = fromDoc
+    ? documents?.find((d) => d.id === fromDoc)?.originalName
+    : null;
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left: config panel */}
@@ -124,6 +165,31 @@ export default function ResearchPage() {
         </div>
 
         <div className="p-4 space-y-5 flex-1">
+          {/* From-document context banner */}
+          <AnimatePresence>
+            {fromDocName && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/25"
+              >
+                <FileText size={14} className="text-primary flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-primary">Document loaded</p>
+                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">{fromDocName}</p>
+                </div>
+                <button
+                  onClick={() => { setFromDoc(null); setSelectedDocs([]); }}
+                  className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                  data-testid="button-clear-doc-context"
+                >
+                  <X size={13} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Query */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-2 block">Research Query</label>
@@ -136,6 +202,47 @@ export default function ResearchPage() {
               data-testid="input-research-query"
             />
           </div>
+
+          {/* Suggested prompts — shown when a document is pre-loaded */}
+          <AnimatePresence>
+            {fromDoc && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Suggested actions</label>
+                <div className="space-y-1">
+                  {SUGGESTED_PROMPTS.map(({ icon: Icon, label, query: q }) => (
+                    <motion.button
+                      key={label}
+                      whileHover={{ x: 2 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => setQuery(q)}
+                      data-testid={`button-prompt-${label.toLowerCase().replace(/\s+/g, "-")}`}
+                      className={cn(
+                        "flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-left transition-all group",
+                        query === q
+                          ? "bg-primary/15 border border-primary/30"
+                          : "hover:bg-muted/60 border border-transparent"
+                      )}
+                    >
+                      <Icon size={13} className={cn(
+                        "flex-shrink-0 transition-colors",
+                        query === q ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                      )} />
+                      <span className={cn(
+                        "text-xs transition-colors",
+                        query === q ? "text-primary font-medium" : "text-muted-foreground group-hover:text-foreground"
+                      )}>{label}</span>
+                      {query === q && <Check size={11} className="text-primary ml-auto" />}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Mode */}
           <div>
@@ -244,7 +351,8 @@ export default function ResearchPage() {
                   );
                 })}
                 {running && !done && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Loader2 size={13} className="animate-spin text-primary" />
                     Processing...
                   </motion.div>
@@ -258,13 +366,41 @@ export default function ResearchPage() {
         <div className="flex-1 overflow-y-auto p-6">
           {!report && !running && steps.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <Search size={28} className="text-primary" />
-              </div>
-              <h2 className="text-lg font-semibold mb-2">Ready to research</h2>
-              <p className="text-muted-foreground text-sm max-w-sm">
-                Enter a research query and choose your mode. The agent will search the web, synthesize findings, and generate a structured report.
-              </p>
+              {fromDocName ? (
+                <>
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                    <FileText size={28} className="text-primary" />
+                  </div>
+                  <h2 className="text-lg font-semibold mb-2">Document ready for research</h2>
+                  <p className="text-muted-foreground text-sm max-w-sm mb-6">
+                    Select a suggested action on the left or write your own query, then run the agent to generate a report.
+                  </p>
+                  {/* Quick-action chips in empty state */}
+                  <div className="flex flex-wrap gap-2 justify-center max-w-md">
+                    {SUGGESTED_PROMPTS.map(({ icon: Icon, label, query: q }) => (
+                      <button
+                        key={label}
+                        onClick={() => setQuery(q)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all text-xs text-muted-foreground hover:text-foreground"
+                        data-testid={`chip-${label.toLowerCase().replace(/\s+/g, "-")}`}
+                      >
+                        <Icon size={11} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                    <Search size={28} className="text-primary" />
+                  </div>
+                  <h2 className="text-lg font-semibold mb-2">Ready to research</h2>
+                  <p className="text-muted-foreground text-sm max-w-sm">
+                    Enter a research query and choose your mode. The agent will search the web, synthesize findings, and generate a structured report.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <div className="max-w-3xl mx-auto">
@@ -275,8 +411,12 @@ export default function ResearchPage() {
               )}
 
               {done && sources.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                  className="mt-8 p-4 rounded-xl border border-border bg-muted/30">
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="mt-8 p-4 rounded-xl border border-border bg-muted/30"
+                >
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sources</h3>
                   <div className="space-y-1.5">
                     {sources.map((src, i) => (
