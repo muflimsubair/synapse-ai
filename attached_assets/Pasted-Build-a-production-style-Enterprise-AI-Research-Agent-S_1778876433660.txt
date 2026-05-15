@@ -1,0 +1,174 @@
+Build a production-style Enterprise AI Research Agent SaaS using Next.js frontend and FastAPI backend in a monorepo architecture.
+
+PROJECT GOAL:
+Create an autonomous AI research assistant that can:
+- chat with users
+- search the web
+- analyze uploaded PDFs
+- remember conversations
+- generate structured research reports
+- use AI tools dynamically
+- support future multi-agent workflows
+
+TECH STACK:
+Frontend:
+- Next.js latest App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Clerk authentication
+- Framer Motion
+- Responsive modern SaaS UI
+
+Backend:
+- FastAPI
+- Python
+- LangGraph
+- LangChain
+- OpenAI API
+- ChromaDB vector database
+- Supabase database
+- Pydantic
+- Uvicorn
+
+ARCHITECTURE:
+Create clean enterprise-level folder structure:
+
+enterprise-agent/
+├── frontend/
+├── backend/
+├── shared/
+└── docs/
+
+FRONTEND REQUIREMENTS:
+Create:
+- beautiful landing page
+- authentication pages
+- dashboard
+- AI chat interface
+- sidebar conversation history
+- PDF upload UI
+- report viewer
+- dark/light mode
+- loading animations
+- streaming AI responses
+- responsive mobile-friendly layout
+
+Use modern premium SaaS styling similar to:
+- Notion AI
+- Perplexity
+- OpenAI
+- Linear
+
+BACKEND REQUIREMENTS:
+Create FastAPI backend with:
+- modular architecture
+- API routes
+- agent orchestration
+- memory system
+- vector storage
+- tool calling system
+- PDF ingestion pipeline
+- research workflow engine
+
+AGENT FEATURES:
+Implement:
+1. Planner Agent
+2. Research Agent
+3. Summarizer Agent
+4. Memory Manager
+
+TOOLS:
+- web search tool
+- PDF parser
+- vector search
+- citation generator
+- report formatter
+
+LANGGRAPH WORKFLOW:
+Create workflow:
+User Query
+→ Planner
+→ Tool Selection
+→ Research
+→ Memory Update
+→ Final Response
+
+AI FEATURES:
+- streaming responses
+- source citations
+- long-term memory
+- contextual conversations
+- RAG pipeline
+- semantic search
+- report generation
+
+DATABASE:
+Supabase tables:
+- users
+- conversations
+- messages
+- documents
+- research_reports
+
+AUTH:
+Use Clerk authentication with protected routes.
+
+PDF SYSTEM:
+Allow:
+- PDF upload
+- chunking
+- embedding generation
+- vector storage
+- semantic retrieval
+
+UI REQUIREMENTS:
+- premium animations
+- glassmorphism cards
+- clean typography
+- smooth transitions
+- professional dashboard
+- collapsible sidebar
+- markdown rendering
+- syntax highlighting
+
+API ENDPOINTS:
+Create:
+- /chat
+- /upload
+- /research
+- /memory
+- /reports
+
+IMPORTANT:
+- use environment variables correctly
+- create clean reusable components
+- production-ready code
+- scalable architecture
+- proper error handling
+- loading states
+- TypeScript types
+- comments for important logic
+- modular reusable backend services
+
+DELIVERABLES:
+- fully working frontend
+- fully working backend
+- setup instructions
+- .env.example files
+- requirements.txt
+- package.json
+- deployment instructions
+- Replit-compatible configuration
+
+BONUS FEATURES:
+If possible add:
+- voice input
+- export research to PDF
+- multi-agent collaboration
+- scheduled research tasks
+- live web research mode
+
+IMPORTANT:
+Do NOT create placeholder demo code.
+Build actual working implementation with proper architecture and clean UI.
