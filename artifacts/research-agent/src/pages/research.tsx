@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Zap, Brain, Check, FileText, Loader2,
   Globe, BookOpen, Lightbulb, PenLine, CheckCircle,
-  AlertCircle, Sparkles, BarChart2, ArrowRight, X
+  AlertCircle, Sparkles, BarChart2, X, Layers, ChevronDown
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useListDocuments, getListReportsQueryKey, getGetStatsOverviewQueryKey } from "@workspace/api-client-react";
@@ -20,27 +20,123 @@ interface Step {
   content?: string;
   query?: string;
   results?: Array<{ title: string; url: string; content: string }>;
-  report?: string;
   sources?: string[];
   reportId?: number;
   error?: string;
 }
 
-const stepIcon: Partial<Record<StepType, typeof Search>> = {
-  thinking: Lightbulb,
-  searching: Globe,
-  search_results: BookOpen,
-  writing: PenLine,
-  done: CheckCircle,
+const STEP_DISPLAY: Record<string, { icon: typeof Search; label: string }> = {
+  thinking:       { icon: Lightbulb,   label: "Planning research..." },
+  searching:      { icon: Globe,       label: "Searching web..." },
+  search_results: { icon: BookOpen,    label: "Reading documents..." },
+  writing:        { icon: PenLine,     label: "Synthesizing findings..." },
+  done:           { icon: CheckCircle, label: "Generating report..." },
 };
 
 const SUGGESTED_PROMPTS = [
-  { icon: Brain, label: "Summarize", query: "Summarize this document and highlight the main points" },
-  { icon: Sparkles, label: "Key insights", query: "Extract the key insights and important findings from this document" },
-  { icon: BarChart2, label: "Full report", query: "Generate a comprehensive research report based on this document" },
-  { icon: Search, label: "Analyze topics", query: "Identify and analyze the main topics, skills, and themes in this document" },
-  { icon: Globe, label: "Web comparison", query: "Compare the content of this document with current web research on the same topic" },
+  { icon: Brain,     label: "Summarize",      query: "Summarize this document and highlight the main points" },
+  { icon: Sparkles,  label: "Key insights",   query: "Extract the key insights and important findings from this document" },
+  { icon: BarChart2, label: "Full report",    query: "Generate a comprehensive research report based on this document" },
+  { icon: Search,    label: "Analyze topics", query: "Identify and analyze the main topics, skills, and themes in this document" },
+  { icon: Globe,     label: "Web comparison", query: "Compare the content of this document with current web research on the same topic" },
 ];
+
+const MODE_CONFIG = {
+  quick: {
+    icon: Zap,
+    label: "Quick",
+    badge: null as string | null,
+    desc: "Single targeted search, results in ~10s",
+    detail: null as string[] | null,
+  },
+  deep: {
+    icon: Layers,
+    label: "Deep Research",
+    badge: "Recommended",
+    desc: "Multi-query, source comparison, long-form report",
+    detail: [
+      "Multiple parallel web searches",
+      "Source credibility scoring",
+      "Conflict resolution across sources",
+      "Long-form structured report saved to library",
+    ],
+  },
+};
+
+const PIPELINE_STAGES = [
+  { key: "plan",       label: "Planning",     icon: Lightbulb },
+  { key: "search",     label: "Searching",    icon: Globe     },
+  { key: "read",       label: "Reading",      icon: BookOpen  },
+  { key: "synthesize", label: "Synthesizing", icon: BarChart2 },
+  { key: "generate",   label: "Generating",   icon: PenLine   },
+];
+
+const STEP_TO_STAGE: Partial<Record<StepType, number>> = {
+  thinking:       0,
+  searching:      1,
+  search_results: 2,
+  writing:        3,
+  content:        4,
+  done:           4,
+  saved:          4,
+};
+
+function PipelineBar({ steps, running, done }: { steps: Step[]; running: boolean; done: boolean }) {
+  const lastStep = steps[steps.length - 1];
+  const activeStage = done ? 5 : (running && lastStep ? (STEP_TO_STAGE[lastStep.type] ?? 0) : -1);
+
+  return (
+    <div className="flex items-center gap-0 px-6 py-3 border-b border-border bg-muted/20">
+      {PIPELINE_STAGES.map((stage, i) => {
+        const complete = activeStage > i || done;
+        const active = activeStage === i && running && !done;
+        const Icon = stage.icon;
+        return (
+          <div key={stage.key} className="flex items-center">
+            <motion.div
+              animate={active ? { opacity: [1, 0.5, 1] } : {}}
+              transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all",
+                complete && "text-emerald-400",
+                active && "text-primary bg-primary/10",
+                !complete && !active && "text-muted-foreground/40"
+              )}
+            >
+              {complete ? (
+                <CheckCircle size={11} className="text-emerald-400" />
+              ) : active ? (
+                <div className="w-2.5 h-2.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              ) : (
+                <Icon size={11} />
+              )}
+              <span className="hidden sm:inline">{stage.label}</span>
+            </motion.div>
+            {i < PIPELINE_STAGES.length - 1 && (
+              <div className={cn("w-4 h-px mx-0.5 transition-colors", complete ? "bg-emerald-400/40" : "bg-border")} />
+            )}
+          </div>
+        );
+      })}
+      {done && (
+        <motion.div
+          initial={{ opacity: 0, x: 8 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium"
+        >
+          <CheckCircle size={11} />
+          Report saved
+        </motion.div>
+      )}
+      {running && !done && (
+        <div className="ml-auto flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <Loader2 size={10} className="animate-spin" />
+          {lastStep && STEP_DISPLAY[lastStep.type]?.label}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function getUrlParams() {
   const params = new URLSearchParams(window.location.search);
@@ -52,8 +148,6 @@ function getUrlParams() {
 
 export default function ResearchPage() {
   const qc = useQueryClient();
-
-  // Read URL params once on mount
   const { docId: initialDocId, query: initialQuery } = getUrlParams();
 
   const [query, setQuery] = useState(initialQuery);
@@ -65,11 +159,11 @@ export default function ResearchPage() {
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [fromDoc, setFromDoc] = useState<number | null>(initialDocId);
+  const [deepExpanded, setDeepExpanded] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const { data: documents } = useListDocuments();
 
-  // When the document list loads, auto-select the pre-loaded doc
   useEffect(() => {
     if (initialDocId && documents) {
       const found = documents.find((d) => d.id === initialDocId);
@@ -77,11 +171,8 @@ export default function ResearchPage() {
     }
   }, [documents, initialDocId]);
 
-  // Clear the "from doc" context if the user deselects it
   useEffect(() => {
-    if (fromDoc && !selectedDocs.includes(fromDoc)) {
-      setFromDoc(null);
-    }
+    if (fromDoc && !selectedDocs.includes(fromDoc)) setFromDoc(null);
   }, [selectedDocs, fromDoc]);
 
   const runResearch = async () => {
@@ -147,17 +238,16 @@ export default function ResearchPage() {
     }
   };
 
-  const toggleDoc = (id: number) => {
+  const toggleDoc = (id: number) =>
     setSelectedDocs((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]);
-  };
 
-  const fromDocName = fromDoc
-    ? documents?.find((d) => d.id === fromDoc)?.originalName
-    : null;
+  const fromDocName = fromDoc ? documents?.find((d) => d.id === fromDoc)?.originalName : null;
+  const showPipeline = running || (done && steps.length > 0);
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Left: config panel */}
+
+      {/* ── Left config panel ─────────────────────────────────── */}
       <div className="w-80 flex-shrink-0 flex flex-col border-r border-border bg-sidebar overflow-y-auto">
         <div className="p-4 border-b border-border">
           <h2 className="font-semibold text-sm">Research Agent</h2>
@@ -165,6 +255,7 @@ export default function ResearchPage() {
         </div>
 
         <div className="p-4 space-y-5 flex-1">
+
           {/* From-document context banner */}
           <AnimatePresence>
             {fromDocName && (
@@ -203,7 +294,7 @@ export default function ResearchPage() {
             />
           </div>
 
-          {/* Suggested prompts — shown when a document is pre-loaded */}
+          {/* Suggested prompts when doc loaded */}
           <AnimatePresence>
             {fromDoc && (
               <motion.div
@@ -244,33 +335,80 @@ export default function ResearchPage() {
             )}
           </AnimatePresence>
 
-          {/* Mode */}
+          {/* Mode selector */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-2 block">Research Mode</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["quick", "deep"] as Mode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  data-testid={`button-mode-${m}`}
-                  className={cn(
-                    "flex flex-col items-start px-3 py-2.5 rounded-lg border text-left transition-all",
-                    mode === m
-                      ? "border-primary/50 bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/30 text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {m === "quick" ? <Zap size={14} className="mb-1" /> : <Brain size={14} className="mb-1" />}
-                  <span className="text-xs font-medium capitalize">{m}</span>
-                  <span className="text-[10px] opacity-70 mt-0.5">
-                    {m === "quick" ? "Single search" : "Multi-query deep dive"}
-                  </span>
-                </button>
-              ))}
+            <div className="space-y-2">
+              {(["quick", "deep"] as Mode[]).map((m) => {
+                const cfg = MODE_CONFIG[m];
+                const Icon = cfg.icon;
+                const isSelected = mode === m;
+                const isDeep = m === "deep";
+                return (
+                  <div key={m}>
+                    <button
+                      onClick={() => { setMode(m); if (isDeep) setDeepExpanded(true); }}
+                      data-testid={`button-mode-${m}`}
+                      className={cn(
+                        "flex items-center gap-3 w-full px-3 py-2.5 rounded-lg border text-left transition-all",
+                        isSelected
+                          ? "border-primary/50 bg-primary/10"
+                          : "border-border hover:border-primary/30"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
+                        isSelected ? "bg-primary/20" : "bg-muted"
+                      )}>
+                        <Icon size={14} className={isSelected ? "text-primary" : "text-muted-foreground"} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("text-xs font-semibold", isSelected ? "text-primary" : "text-foreground/80")}>{cfg.label}</span>
+                          {cfg.badge && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/25">
+                              {cfg.badge}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{cfg.desc}</p>
+                      </div>
+                      {isDeep && isSelected && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeepExpanded((v) => !v); }}
+                          className="text-muted-foreground/60 hover:text-muted-foreground transition-colors flex-shrink-0"
+                        >
+                          <ChevronDown size={13} className={cn("transition-transform", deepExpanded && "rotate-180")} />
+                        </button>
+                      )}
+                    </button>
+
+                    <AnimatePresence>
+                      {isDeep && isSelected && deepExpanded && cfg.detail && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-1.5 ml-3 pl-3 border-l-2 border-primary/20 space-y-1.5 py-1">
+                            {cfg.detail.map((d) => (
+                              <div key={d} className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                <div className="w-1 h-1 rounded-full bg-primary/60 flex-shrink-0" />
+                                {d}
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Documents */}
+          {/* Document selector */}
           {documents && documents.length > 0 && (
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-2 block">
@@ -304,7 +442,7 @@ export default function ResearchPage() {
           )}
         </div>
 
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-2">
           <Button
             onClick={runResearch}
             disabled={!query.trim() || running}
@@ -313,56 +451,86 @@ export default function ResearchPage() {
           >
             {running ? (
               <><Loader2 size={14} className="animate-spin" />Running...</>
+            ) : mode === "deep" ? (
+              <><Layers size={14} />Run Deep Research</>
             ) : (
               <><Search size={14} />Run Research</>
             )}
           </Button>
+          {mode === "deep" && !running && (
+            <p className="text-[10px] text-center text-muted-foreground">
+              Deep mode runs multiple searches and may take 30–60s
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Right: output */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Agent steps */}
-        {steps.length > 0 && (
-          <div className="border-b border-border px-6 py-3 bg-muted/20 max-h-48 overflow-y-auto">
-            <div className="space-y-1.5">
-              <AnimatePresence>
-                {steps.map((step, i) => {
-                  const Icon = stepIcon[step.type] ?? Lightbulb;
-                  if (step.type === "error") {
+      {/* ── Right: output ─────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+
+        {/* Animated pipeline status bar */}
+        <AnimatePresence>
+          {showPipeline && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <PipelineBar steps={steps} running={running} done={done} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Step log */}
+        <AnimatePresence>
+          {steps.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="border-b border-border bg-muted/10 overflow-hidden max-h-36 overflow-y-auto"
+            >
+              <div className="px-6 py-2.5 space-y-1.5">
+                <AnimatePresence initial={false}>
+                  {steps.map((step, i) => {
+                    const cfg = STEP_DISPLAY[step.type];
+                    if (!cfg && step.type !== "error") return null;
+                    const Icon = cfg?.icon ?? AlertCircle;
+                    const isLast = i === steps.length - 1;
                     return (
-                      <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-2 text-destructive text-xs">
-                        <AlertCircle size={13} />
-                        {step.error}
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-2 text-xs"
+                      >
+                        {step.type === "error" ? (
+                          <AlertCircle size={12} className="text-destructive flex-shrink-0" />
+                        ) : isLast && running && !done ? (
+                          <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin flex-shrink-0" />
+                        ) : (
+                          <CheckCircle size={12} className="text-emerald-400/70 flex-shrink-0" />
+                        )}
+                        <Icon size={12} className={isLast && running && !done ? "text-primary" : "text-muted-foreground/60"} />
+                        <span className={cn("font-mono", isLast && running && !done ? "text-primary" : "text-muted-foreground/60",
+                          step.type === "error" && "text-destructive")}>
+                          {step.type === "thinking" && step.content}
+                          {step.type === "searching" && <>Searching: <em className="not-italic text-foreground/80">{step.query}</em></>}
+                          {step.type === "search_results" && <>Read {step.results?.length ?? 0} results</>}
+                          {step.type === "writing" && step.content}
+                          {step.type === "done" && "Research complete — generating report"}
+                          {step.type === "error" && step.error}
+                        </span>
                       </motion.div>
                     );
-                  }
-                  return (
-                    <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Icon size={13} className="text-primary flex-shrink-0" />
-                      {step.type === "thinking" && <span>{step.content}</span>}
-                      {step.type === "searching" && <span>Searching: <em className="text-foreground">{step.query}</em></span>}
-                      {step.type === "search_results" && <span>Found {step.results?.length ?? 0} results</span>}
-                      {step.type === "writing" && <span>{step.content}</span>}
-                      {step.type === "done" && <span className="text-emerald-400">Research complete</span>}
-                    </motion.div>
-                  );
-                })}
-                {running && !done && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 size={13} className="animate-spin text-primary" />
-                    Processing...
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        )}
+                  })}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Report / empty state */}
+        {/* Main report area */}
         <div className="flex-1 overflow-y-auto p-6">
           {!report && !running && steps.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -373,9 +541,8 @@ export default function ResearchPage() {
                   </div>
                   <h2 className="text-lg font-semibold mb-2">Document ready for research</h2>
                   <p className="text-muted-foreground text-sm max-w-sm mb-6">
-                    Select a suggested action on the left or write your own query, then run the agent to generate a report.
+                    Select a suggested action on the left or write your own query, then run the agent.
                   </p>
-                  {/* Quick-action chips in empty state */}
                   <div className="flex flex-wrap gap-2 justify-center max-w-md">
                     {SUGGESTED_PROMPTS.map(({ icon: Icon, label, query: q }) => (
                       <button
@@ -384,8 +551,7 @@ export default function ResearchPage() {
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all text-xs text-muted-foreground hover:text-foreground"
                         data-testid={`chip-${label.toLowerCase().replace(/\s+/g, "-")}`}
                       >
-                        <Icon size={11} />
-                        {label}
+                        <Icon size={11} />{label}
                       </button>
                     ))}
                   </div>
@@ -396,9 +562,23 @@ export default function ResearchPage() {
                     <Search size={28} className="text-primary" />
                   </div>
                   <h2 className="text-lg font-semibold mb-2">Ready to research</h2>
-                  <p className="text-muted-foreground text-sm max-w-sm">
-                    Enter a research query and choose your mode. The agent will search the web, synthesize findings, and generate a structured report.
+                  <p className="text-muted-foreground text-sm max-w-sm mb-6">
+                    Enter a query, choose Quick or Deep Research mode, then run the agent.
                   </p>
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex items-start gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5 text-left max-w-sm"
+                  >
+                    <Layers size={18} className="text-primary flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-primary mb-0.5">Try Deep Research Mode</p>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Runs multiple searches, compares sources, and generates a long-form report — automatically saved to your Reports library.
+                      </p>
+                    </div>
+                  </motion.div>
                 </>
               )}
             </div>
@@ -410,6 +590,13 @@ export default function ResearchPage() {
                 </motion.div>
               )}
 
+              {!report && running && (
+                <div className="flex items-center gap-3 text-muted-foreground text-sm py-8">
+                  <Loader2 size={16} className="animate-spin text-primary" />
+                  {mode === "deep" ? "Running deep research — this may take a moment..." : "Researching..."}
+                </div>
+              )}
+
               {done && sources.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
@@ -417,13 +604,18 @@ export default function ResearchPage() {
                   transition={{ delay: 0.2 }}
                   className="mt-8 p-4 rounded-xl border border-border bg-muted/30"
                 >
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sources</h3>
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <Globe size={11} />
+                    Sources ({sources.length})
+                  </h3>
                   <div className="space-y-1.5">
                     {sources.map((src, i) => (
                       <a key={i} href={src} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors truncate">
-                        <Globe size={11} className="flex-shrink-0" />
-                        {src}
+                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors">
+                        <div className="w-4 h-4 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[9px] font-mono">
+                          {i + 1}
+                        </div>
+                        <span className="truncate hover:underline underline-offset-2">{src}</span>
                       </a>
                     ))}
                   </div>
