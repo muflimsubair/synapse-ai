@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, MessageSquare, FileText, Zap, Globe, Brain, ArrowRight,
   Cpu, ChevronRight, CheckCircle, Lightbulb, PenLine, BarChart2,
-  BookOpen, Layers, Network, Sparkles, ExternalLink
+  BookOpen, Layers, Network, Sparkles, ExternalLink,
+  TrendingUp, GraduationCap, Building2, Users, Microscope
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/lib/markdown";
@@ -443,6 +444,45 @@ export default function LandingPage() {
             </Link>
           </div>
         </motion.div>
+      </section>
+
+      {/* Built for */}
+      <section className="px-6 py-12 max-w-5xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-8"
+        >
+          <h2 className="text-xl font-bold mb-1">Built for</h2>
+          <p className="text-muted-foreground text-sm">Who gets the most out of Synapse AI</p>
+        </motion.div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[
+            { icon: Microscope,    label: "Researchers",      desc: "Literature reviews, synthesis, hypothesis generation" },
+            { icon: TrendingUp,      label: "Analysts",         desc: "Market intel, competitive landscape, due diligence" },
+            { icon: Brain,           label: "Founders",         desc: "Pitch validation, industry research, trend spotting" },
+            { icon: GraduationCap,   label: "Students",         desc: "Essay research, topic exploration, source gathering" },
+            { icon: Building2,       label: "Enterprise teams", desc: "R&D reports, strategy decks, regulatory research" },
+          ].map(({ icon: Icon, label, desc }) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4 }}
+              className="group flex flex-col items-center text-center p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-card/80 transition-all"
+            >
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                <Icon size={16} className="text-primary" />
+              </div>
+              <p className="text-xs font-semibold mb-1">{label}</p>
+              <p className="text-[10px] text-muted-foreground leading-snug">{desc}</p>
+            </motion.div>
+          ))}
+        </div>
       </section>
 
       {/* Features grid */}
